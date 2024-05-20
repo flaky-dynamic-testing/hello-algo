@@ -35,16 +35,27 @@ jobs:
     - name: Generate and Run JPF Configs
       run: |
         find codes/java/ -name "*.java" | while read -r file; do
+          # Extract package name from the Java file
+          package=$(grep "^package " "$file" | awk '{print $2}' | sed 's/;$//')
           classname=$(basename "$file" .java)
+          
+          if [ -n "$package" ]; then
+            fqcn="$package.$classname"
+          else
+            fqcn="$classname"
+          fi
+
           dir=$(dirname "$file")
-          echo "target=${dir//\//.}.$classname" > $dir/$classname.jpf
+          
+          # Create .jpf file
+          echo "target=$fqcn" > $dir/$classname.jpf
           echo "classpath=codes/java/build" >> $dir/$classname.jpf
           echo "sourcepath=codes/java" >> $dir/$classname.jpf
           echo "vm.por=true" >> $dir/$classname.jpf
           echo "vm.version=${{ matrix.java }}" >> $dir/$classname.jpf
           echo "jvm.insn_factory.class=gov.nasa.jpf.jvm.bytecode.InstructionFactory" >> $dir/$classname.jpf
           echo "jpf.basedir=/tmp/jpf-core" >> $dir/$classname.jpf
-          echo "Generated JPF config for $classname"
+          echo "Generated JPF config for $fqcn"
 
           java -jar /tmp/jpf-core/build/RunJPF.jar $dir/$classname.jpf --enable-preview
         done
